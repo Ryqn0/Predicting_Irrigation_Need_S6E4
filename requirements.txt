@@ -1,0 +1,26 @@
+# Core ML
+numpy
+pandas
+scikit-learn
+scipy
+
+# Gradient boosting (common for tabular Kaggle)
+xgboost
+lightgbm
+
+# Experiment tracking
+mlflow
+
+# Data versioning (optional, add when needed)
+# dvc
+
+# Visualization
+matplotlib
+seaborn
+
+# Notebooks
+jupyter
+
+# Utilities
+python-dotenv
+pyyaml

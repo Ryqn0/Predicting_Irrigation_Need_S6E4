@@ -1,0 +1,42 @@
+# Data — track only small processed files, never raw dumps
+data/raw/*
+data/external/*
+*.csv
+*.parquet
+*.feather
+*.h5
+*.hdf5
+
+# Model artifacts
+artifacts/*
+!artifacts/**/.gitkeep
+
+# Notebooks output
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environments
+.env
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# MLflow / experiment tracking
+mlruns/
+mlflow.db
