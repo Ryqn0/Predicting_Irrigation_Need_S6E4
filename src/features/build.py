@@ -264,6 +264,13 @@ def build_features(train, test, y_train, target_encode_cols=('Crop_Stage',)):
     # Categorical label encoding
     train, test = encode_categoricals(train, test)
 
+    # Map the original target to numeric if it's still in string form (e.g. Low/Medium/High → 0/1/2)
+    if 'Irrigation_Need' in train.columns and train['Irrigation_Need'].dtype == 'object':
+        train['Irrigation_Need'] = train['Irrigation_Need'].map({'Low': 0, 'Medium': 1, 'High': 2})
+    
+    if 'Irrigation_Need' in test.columns and test['Irrigation_Need'].dtype == 'object':
+        test['Irrigation_Need'] = test['Irrigation_Need'].map({'Low': 0, 'Medium': 1, 'High': 2})
+
     # K-fold target encoding
     for col in target_encode_cols:
         tr_enc, te_enc = kfold_target_encode(train[col].astype(str),
