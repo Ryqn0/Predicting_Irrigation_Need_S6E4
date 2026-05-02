@@ -1,4 +1,3 @@
-from typing import List, Tuple, Optional
 
 import pandas as pd
 import great_expectations as gx
@@ -7,7 +6,7 @@ from great_expectations.execution_engine import PandasExecutionEngine
 from great_expectations.core.batch import Batch
 
 
-def verify_data(df: pd.DataFrame) -> Tuple[bool, Optional[List[str]]]:
+def verify_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Using Great Expectations to verify the integrity of the data.
     """
@@ -18,8 +17,8 @@ def verify_data(df: pd.DataFrame) -> Tuple[bool, Optional[List[str]]]:
     validator = Validator(
         execution_engine=PandasExecutionEngine(),
         batches=[
-            Batch(data=df, batch_id="data_batch")
-        ]
+            Batch(data=df)
+        ],
         data_context=context
     )
 
@@ -38,7 +37,7 @@ def verify_data(df: pd.DataFrame) -> Tuple[bool, Optional[List[str]]]:
 
     # Expectation 4: 'Crop_Growth_Stage' column should exist and should have valid values
     validator.expect_column_to_exist('Crop_Growth_Stage')
-    validator.expect_column_values_to_be_in_set('Crop_Growth_Stage', ['Sowing', 'Harvesting', 'Flowering', 'Vegetative'])
+    validator.expect_column_values_to_be_in_set('Crop_Growth_Stage', ['Sowing', 'Harvest', 'Flowering', 'Vegetative'])
 
     # Expectation 5: 'Season' column should exist and should have valid values
     validator.expect_column_to_exist('Season')
@@ -115,9 +114,18 @@ def verify_data(df: pd.DataFrame) -> Tuple[bool, Optional[List[str]]]:
         print("Data verification failed with the following issues:")
         for result in results["results"]:
             if not result["success"]:
-                print(f"- Expectation: {result['expectation_config']['expectation_type']}")
+                print(f"- Expectation: {result['expectation_config']['expectation_context']}")
                 print(f"  Column: {result['expectation_config']['kwargs'].get('column')}")
                 print(f"  Details: {result['result']}")
-        return False, [f"{result['expectation_config']['expectation_type']} on column {result['expectation_config']['kwargs'].get('column')}" for result in results["results"] if not result["success"]]
+        raise ValueError(
+            "Data verification failed:\n" +
+            "\n".join(
+                f"- {result['expectation_config']['kwargs'].get('column')}: "
+                f"{result['expectation_config']['expectation_context']}"
+                for result in results["results"] if not result["success"]
+            )
+        )
+    
+    print("Data verification passed successfully!")
 
-    return True
+    return df

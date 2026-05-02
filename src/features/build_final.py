@@ -85,44 +85,52 @@ def add_formula_features(df):
     df.loc[df['formula_score'] > 3, 'formula_pred'] = 2 # High
     return df
 
-def ngram_features(df, degrees=(2, 3)):
-    """Categorical n-gram interactions for each degree in `degrees`."""
-    bigrams = []
-    trigrams = []
+def encode_cat_cols(df, encodings=None):
+    """Label-encode cat_cols to integers.
+
+    Pass encodings=None to fit on train — returns (df, encodings).
+    Pass the returned dict to transform test. Unseen values get -1.
+    """
+    fitted = {} if encodings is None else encodings
+    for col in cat_cols:
+        known = fitted.get(col)
+        cat = pd.Categorical(df[col], categories=known)
+        if encodings is None:
+            fitted[col] = cat.categories
+        df[col] = cat.codes
+    return df, fitted
+
+def ngram_features(df, degrees=(2, 3), categories=None):
+    """Categorical n-gram interactions for each degree in `degrees`.
+
+    Pass categories=None (default) to fit on train — returns (df, categories).
+    Pass the returned categories dict when transforming test data.
+    Unseen combinations in test get code -1.
+    """
+    fitted = {} if categories is None else categories
     for n in degrees:
         for cols in itertools.combinations(top_cat_cols, n):
             new_col = "_x_".join(cols)
-            df[new_col] = df[list(cols)].astype(str).agg("_".join, axis=1)
-            if n == 2:
-                bigrams.append(new_col)
-            elif n == 3:
-                trigrams.append(new_col)
-    
-    ngrams = bigrams + trigrams
-    df[ngrams] = df[ngrams].astype("category")
+            combined = df[list(cols)].astype(str).agg("_".join, axis=1)
+            known = fitted.get(new_col)
+            cat = pd.Categorical(combined, categories=known)
+            if categories is None:
+                fitted[new_col] = cat.categories
+            df[new_col] = cat.codes
 
-    return df
+    return df, fitted
+
+_bin_config = {
+    'Soil_Moisture':  ([0, 25, 50, 75, 100],      ['Very Low', 'Low', 'Moderate', 'High']),
+    'Temperature_C':  ([0, 15, 25, 30, 50],        ['Cold', 'Cool', 'Warm', 'Hot']),
+    'Wind_Speed_kmh': ([0, 5, 10, 20, 100],        ['Calm', 'Breezy', 'Windy', 'Stormy']),
+    'Rainfall_mm':    ([0, 100, 300, 500, np.inf], ['Dry', 'Light Rain', 'Moderate Rain', 'Heavy Rain']),
+}
 
 def binning_features(df):
-    """Binning numerical features based on domain-inspired thresholds."""
-    
-    for col in top_num_cols:
-        if col == "Soil_Moisture":
-            bins = [0, 25, 50, 75, 100]
-            labels = ['Very Low', 'Low', 'Moderate', 'High']
-        elif col == "Temperature_C":
-            bins = [0, 15, 25, 30, 50]
-            labels = ['Cold', 'Cool', 'Warm', 'Hot']
-        elif col == "Wind_Speed_kmh":
-            bins = [0, 5, 10, 20, 100]
-            labels = ['Calm', 'Breezy', 'Windy', 'Stormy']
-        elif col == "Rainfall_mm":
-            bins = [0, 100, 300, 500, np.inf]
-            labels = ['Dry', 'Light Rain', 'Moderate Rain', 'Heavy Rain']
-        
-        new_col = f"{col}_binned"
-        df[new_col] = pd.cut(df[col], bins=bins, labels=labels)
-    
+    """Bins numerical features into integer codes. Bins are fixed so no fit step needed."""
+    for col, (bins, labels) in _bin_config.items():
+        df[f"{col}_binned"] = pd.cut(df[col], bins=bins, labels=labels).cat.codes
     return df
 
 def numeric_features(df):
@@ -150,26 +158,58 @@ def pairwise_interactions(df):
         df[f"{col1}_div_{col2}"] = df[col1] / (df[col2] + 1e-5)
     return df
 
-def build_final_features(df):
+def one_hot_encode(df):
+    """Label-encode any remaining object columns to integers."""
+    df = pd.get_dummies(df, columns=cat_cols, drop_first=True)
+    return df
+
+def build_final_features(df, encodings=None):
+    """Build all features. Returns (df, encodings).
+
+    Train:  df_train, enc = build_final_features(df_train)
+    Test:   df_test,  _   = build_final_features(df_test, encodings=enc)
+
+    encodings holds both cat_col label maps and ngram category maps,
+    so every string column is consistently integer-coded across splits.
+    """
+    cat_enc    = encodings.get("cat")    if encodings else None
+    ngram_enc  = encodings.get("ngram")  if encodings else None
+
     print("Building final features...")
     print("Adding threshold distance features...")
     df = add_threshold_distances(df)
-    print("Threshold distance features added.")
+    print("Finished adding threshold distance features.")
     print("Adding formula-based features...")
     df = add_formula_features(df)
-    print("Formula-based features added.")
-    print("Adding n-gram features...")
-    df = ngram_features(df)
-    print("N-gram features added.")
+    print("Finished adding formula-based features.")
+    print("Encoding categorical features...")
+    df, cat_enc   = encode_cat_cols(df, encodings=cat_enc)
+    print("Finished encoding categorical features.")
+    print("Adding n-gram interaction features...")
+    df, ngram_enc = ngram_features(df, categories=ngram_enc)
+    print("Finished adding n-gram interaction features.")
     print("Adding binning features...")
     df = binning_features(df)
-    print("Binning features added.")
+    print("Finished adding binning features.")
     print("Adding numeric interaction features...")
     df = numeric_features(df)
-    print("Numeric interaction features added.")
-    print("Adding pairwise interactions...")
+    print("Finished adding numeric interaction features.")
+    print("Adding pairwise interaction features...")
     df = pairwise_interactions(df)
-    print("Pairwise interactions added.")
-    print("Final feature building complete.")
+    print("Finished adding pairwise interaction features.")
+    if target in df.columns:
+        print("Mapping target variable to integers...")
+        df[target] = df[target].map(target_map)
+        print("Finished mapping target variable.")
+    print("Applying one-hot encoding to remaining categorical features...")
+    df = one_hot_encode(df)
+    print("Finished applying one-hot encoding.")
+    # Catch any remaining category or object columns (e.g. from future feature additions)
+    for col in df.select_dtypes(include=["category"]).columns:
+        print(f"Encoding remaining categorical column: {col}...")
+        df[col] = df[col].cat.codes
+        print(f"Finished encoding column: {col}.")
     
-    return df
+    print("All features built successfully. Final shape:", df.shape)
+
+    return df, {"cat": cat_enc, "ngram": ngram_enc}
