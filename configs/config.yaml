@@ -5,29 +5,30 @@ data:
 model:
   name: lightgbm
   params:
-    objective:         "multiclass",
-    num_class:         3,
-    metric:            "multi_logloss",
-    n_estimators:      10000,
+    objective:         "multiclass"
+    num_class:         3
+    metric:            "multi_logloss"
+    n_estimators:      10000
 
     # tree structure
-    num_leaves:        127,
-    max_depth:         -1,
-    min_child_samples: 100,    # higher = less overfit on 630k rows
+    num_leaves:        127
+    max_depth:         -1
+    min_child_samples: 100    # higher = less overfit on 630k rows
 
     # stochastic regularization
-    eature_fraction:  0.8,
-    bagging_fraction:  0.8,
-    bagging_freq:      5,
+    feature_fraction:  0.8
+    bagging_fraction:  0.8
+    bagging_freq:      5
 
     # L1/L2
-    lambda_l1:         0.1,
-    lambda_l2:         1.0,
+    lambda_l1:         0.1
+    lambda_l2:         1.0
 
-    learning_rate:     0.05,
-    n_jobs:            -1,
-    seed:              42,
-    verbose:           -1,
+    learning_rate:     0.05
+    n_jobs:            -1
+    seed:              42
+    verbose:           -1
+  save_path: models/lightgbm_model.pkl
 
 training:
   test_size: 0.2
@@ -35,7 +36,7 @@ training:
   cv_folds: 5
 
 mlflow:
-  train :
+  train:
     experiment_name: irrigation-need
     tracking_uri: mlruns/
   eval:

@@ -1,17 +1,27 @@
 import pandas as pd
-import mlflow.sklearn
 
-from src.data.load import load_processed
-from src.features.build import build_features
+from src.data.verify import verify_data
+from src.features.build_final import build_final_features
 
 
-def predict(run_id: str, output_path: str = "reports/submission.csv") -> None:
-    df = load_processed("test.csv")
-    df = build_features(df)
+def predict(model, model_encodings, input = dict) :
 
-    model = mlflow.sklearn.load_model(f"runs:/{run_id}/model")
-    preds = model.predict_proba(df)[:, 1]
+    input = pd.DataFrame(input, index=[0])
+    input = verify_data(input)
+    input = input.drop(columns=["id"], errors="ignore")
+    input, _ = build_final_features(input, encodings=model_encodings)
 
-    submission = pd.DataFrame({"id": df.index, "target": preds})
-    submission.to_csv(output_path, index=False)
-    print(f"Saved to {output_path}")
+    preds = model.predict(input)
+    preds_proba = model.predict_proba(input)
+
+    if preds == 0:
+        return f"Low irrigation need with probability {preds_proba[0][0]:.2f}"
+
+    elif preds == 1:
+        return f"Medium irrigation need with probability {preds_proba[0][1]:.2f}"
+    
+    elif preds == 2:
+        return f"High irrigation need with probability {preds_proba[0][2]:.2f}"
+    
+    else:
+        return f"Unknown prediction: {preds[0]}"
