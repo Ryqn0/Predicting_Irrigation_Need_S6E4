@@ -34,3 +34,4 @@ pydantic
 fastapi
 uvicorn
 gradio
+fastapi[standard]

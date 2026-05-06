@@ -22,9 +22,9 @@ def verify_data(df: pd.DataFrame) -> pd.DataFrame:
         data_context=context
     )
 
-    # Expectation 1: 'id' column can exist or not but if it exists, it should have only unique values and no nulls
+    # Expectation 1: 'id' column can exist or not but if it exists, it should have only unique values or be null (for prediction data)
     if 'id' in df.columns:
-        validator.expect_column_values_to_not_be_null('id')
+        #validator.expect_column_values_to_not_be_null('id')
         validator.expect_column_values_to_be_unique('id')
 
     # Expectation 2: 'Soil_Type' column should exist and should have valid values

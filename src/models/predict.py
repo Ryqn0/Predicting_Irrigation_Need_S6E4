@@ -4,12 +4,13 @@ from src.data.verify import verify_data
 from src.features.build_final import build_final_features
 
 
-def predict(model, model_encodings, input = dict) :
+def predict(model, model_encodings, model_features, input=dict):
 
     input = pd.DataFrame(input, index=[0])
     input = verify_data(input)
     input = input.drop(columns=["id"], errors="ignore")
     input, _ = build_final_features(input, encodings=model_encodings)
+    input = input.reindex(columns=model_features, fill_value=0)
 
     preds = model.predict(input)
     preds_proba = model.predict_proba(input)
